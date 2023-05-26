@@ -1,0 +1,22 @@
+services:
+  postgresql:
+    image: bitnami/postgresql:14
+    labels:
+      org.springframework.boot.service-connection: postgres
+    ports:
+    - 5432:5432
+    environment:
+      POSTGRES_DB: order
+      POSTGRES_USER: order
+      POSTGRES_PASSWORD: order
+  rabbitmq:
+    image: rabbitmq:3-management
+    labels:
+      org.springframework.boot.service-connection: rabbitmq
+    ports:
+    - 5672:5672
+    - 15672:15672
+  zipkin:
+    image: openzipkin/zipkin-slim
+    ports:
+    - 9411:9411

@@ -1,59 +1,39 @@
-package com.example.outbox;
+package com.example.outbox.order;
 
-import java.sql.Timestamp;
-
-import javax.sql.DataSource;
-
-import com.example.outbox.order.Order;
-import org.slf4j.LoggerFactory;
+import com.example.outbox.order.OrderEvents.Cancelled;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.dsl.IntegrationFlow;
-import org.springframework.integration.jdbc.JdbcMessageHandler;
-import org.springframework.integration.jdbc.store.JdbcChannelMessageStore;
-import org.springframework.integration.jdbc.store.channel.PostgresChannelMessageStoreQueryProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageHandler;
-import org.springframework.messaging.MessagingException;
 
-@Configuration
-public class IntegrationConfig {
-	@Bean
-	public JdbcChannelMessageStore jdbcChannelMessageStore(DataSource dataSource) {
-		JdbcChannelMessageStore jdbcChannelMessageStore = new JdbcChannelMessageStore(dataSource);
-		jdbcChannelMessageStore.setChannelMessageStoreQueryProvider(new PostgresChannelMessageStoreQueryProvider());
-		return jdbcChannelMessageStore;
-	}
+@Configuration(proxyBeanMethods = false)
+public class OrderConfig {
 
 	@Bean
-	public JdbcMessageHandler jdbcMessageHandler(JdbcTemplate jdbcTemplate) {
-		final JdbcMessageHandler jdbcMessageHandler = new JdbcMessageHandler(jdbcTemplate, """
-				INSERT INTO "order"(name, amount, created_at) VALUES(:name, :amount, :createdAt)
-				""");
-		jdbcMessageHandler.setSqlParameterSourceFactory(input -> {
-			final Order order = (Order) ((Message<?>) input).getPayload();
-			return new MapSqlParameterSource()
-					.addValue("name", order.name())
-					.addValue("amount", order.amount())
-					.addValue("createdAt", Timestamp.from(order.createdAt()));
-		});
-		return jdbcMessageHandler;
-	}
-
-	@Bean
-	public IntegrationFlow integrationFlow(JdbcMessageHandler jdbcMessageHandler) {
-		return IntegrationFlow.from("outbox.input")
+	public IntegrationFlow orderCreateFlow(OrderService orderService) {
+		return IntegrationFlow.from("order.create")
 				.routeToRecipients(routes -> routes.transactional()
-						.recipientFlow(f -> f.handle(jdbcMessageHandler))
-						.recipientFlow(f -> f.handle(new MessageHandler() {
-							@Override
-							public void handleMessage(Message<?> message) throws MessagingException {
-								LoggerFactory.getLogger("relay").info("{}", message);
-							}
-						})))
+						.recipientFlow(f -> f
+								.<Order>handle((order, headers) -> orderService.create(order))
+								.channel(c -> c.publishSubscribe("order.create.reply"))
+								.transform(OrderEvents.Created::from)
+								.enrichHeaders(h -> h.header("eventType", "order_created"))
+								.channel("outbox")))
+				.get();
+	}
+
+	@Bean
+	public IntegrationFlow orderCancelFlow(OrderService orderService) {
+		return IntegrationFlow.from("order.cancel")
+				.routeToRecipients(routes -> routes.transactional()
+						.recipientFlow(f -> f
+								.<Long>handle((orderId, headers) -> {
+									final int updated = orderService.cancel(orderId);
+									return updated > 0 ? orderId : null;
+								})
+								.transform(Cancelled::new)
+								.enrichHeaders(h -> h.header("eventType", "order_cancelled"))
+								.channel("outbox")))
 				.get();
 	}
 }

@@ -4,29 +4,29 @@ import com.example.outbox.order.Order.OrderStatus;
 import io.micrometer.observation.annotation.Observed;
 
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Repository
+@Service
 @Transactional
 @Observed
-public class OrderMapper {
+public class OrderService {
 	private final JdbcTemplate jdbcTemplate;
 
-	public OrderMapper(JdbcTemplate jdbcTemplate) {
+	public OrderService(JdbcTemplate jdbcTemplate) {
 		this.jdbcTemplate = jdbcTemplate;
 	}
 
-	public Order insert(Order order) {
+	public Order create(Order order) {
 		final Long orderId = this.jdbcTemplate.queryForObject("""
 				INSERT INTO "order"(amount, status) VALUES(?, ?) RETURNING order_id
 				""".trim(), Long.class, order.amount(), order.status().name());
-		return new Order(orderId, order.amount(), order.status());
+		return order.withId(orderId);
 	}
 
 	public int cancel(Long orderId) {
 		return this.jdbcTemplate.update("""
-				UPDATE "order" SET status=? WHERE id=?
-				""".trim(), OrderStatus.CANCELLED.name(), orderId);
+				UPDATE "order" SET status=? WHERE order_id=? AND status <> ?
+				""".trim(), OrderStatus.CANCELLED.name(), orderId, OrderStatus.CANCELLED.name());
 	}
 }

@@ -1,4 +1,4 @@
-package com.example.outbox;
+package com.example.outbox.config;
 
 import javax.sql.DataSource;
 
@@ -15,7 +15,7 @@ import org.springframework.integration.jdbc.store.channel.PostgresChannelMessage
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHandler;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 public class OutboxConfig {
 
 	@Bean
