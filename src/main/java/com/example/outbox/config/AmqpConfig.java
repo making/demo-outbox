@@ -7,7 +7,6 @@ import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.config.ContainerCustomizer;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.amqp.RabbitTemplateCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,23 +20,13 @@ public class AmqpConfig {
 	}
 
 	@Bean
-	public Queue orderCreatedQueue() {
-		return new Queue("order.created");
+	public Queue orderEventQueue() {
+		return new Queue("order.event");
 	}
 
 	@Bean
-	public Queue orderCancelledQueue() {
-		return new Queue("order.cancelled");
-	}
-
-	@Bean
-	public Binding orderCreatedBinding(@Qualifier("orderCreatedQueue") Queue queue, TopicExchange exchange) {
-		return BindingBuilder.bind(queue).to(exchange).with("created");
-	}
-
-	@Bean
-	public Binding orderCancelledBinding(@Qualifier("orderCancelledQueue") Queue queue, TopicExchange exchange) {
-		return BindingBuilder.bind(queue).to(exchange).with("cancelled");
+	public Binding orderEventBinding(Queue queue, TopicExchange exchange) {
+		return BindingBuilder.bind(queue).to(exchange).with("event");
 	}
 
 	@Bean
