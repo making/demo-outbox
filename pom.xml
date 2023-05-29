@@ -67,6 +67,11 @@
 			<groupId>org.springframework.integration</groupId>
 			<artifactId>spring-integration-jdbc</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>am.ik.access-logger</groupId>
+			<artifactId>access-logger</artifactId>
+			<version>0.1.5</version>
+		</dependency>
 
 		<dependency>
 			<groupId>io.micrometer</groupId>
